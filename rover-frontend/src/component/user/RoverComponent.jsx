@@ -1,6 +1,56 @@
 import React, {Component} from 'react'
 import ApiService from "../../service/ApiService";
 
+function getTokens(res, callback) {
+    if (res.status === 401) {
+        if (!this.state.accessToken || !this.state.refreshToken)
+            this.props.history.push('/login');
+        else {
+            ApiService.getAccesTokenFromRefreshToken(this.state.refreshToken)
+                .then((res) => {
+
+                        this.setState({accessToken: res.data.access_token}, () => {
+                            window.sessionStorage.setItem("accessToken", this.state.accessToken);
+                            callback.call(this);
+                        });
+
+
+                    }
+                ).catch(error => {
+                if (error.response.status === 401) {
+                    let user = {
+                        username: window.sessionStorage.getItem("username"),
+                        password: window.sessionStorage.getItem("password")
+                    };
+                    ApiService.getAccesAndRefreshTokens(user)
+                        .then(res => {
+                            window.sessionStorage.setItem("accessToken", res.data.access_token);
+                            window.sessionStorage.setItem("refreshToken", res.data.refresh_token);
+                            window.sessionStorage.getItem("accessToken");
+                            window.sessionStorage.getItem("refreshToken");
+                            this.setState({accessToken: res.data.access_token},
+                                () => {
+                                    this.setState({refreshToken: res.data.refresh_token});
+                                    callback.call(this);
+                                });
+
+                        });
+                }
+
+
+            });
+        }
+    }
+}
+
+function returnError(status, error) {
+    if (status === 400 || status === 500)
+        window.Toast.fire({
+            icon: 'error',
+            title: error.response.data.message
+        });
+}
+
 class RoverComponent extends Component {
 
     constructor(props) {
@@ -16,6 +66,7 @@ class RoverComponent extends Component {
 
         this.reloadRoverInfo = this.reloadRoverInfo.bind(this);
         this.sendCommand = this.sendCommand.bind(this);
+        this.logout = this.logout.bind(this);
     }
 
     onChange = (e) =>
@@ -38,64 +89,54 @@ class RoverComponent extends Component {
     }
 
     sendCommand = (e) => {
-        e.preventDefault();
-        ApiService.sendCommand(this.state.cmdStr)
+        if (e)
+            e.preventDefault();
+        ApiService.sendCommand(this.state.cmdStr, this.state.accessToken)
             .then((res) => {
-                if (res.status === 401) {
-                    if (!this.state.accessToken || this.state.refreshToken)
-                        this.props.history.push('/login');
-                    else {
-                        ApiService.getAccesTokenFromRefreshToken(this.state.refreshToken)
-                            .then((res) => {
-                                    if (res.status === 401) {
-                                        let user = {
-                                            username: window.sessionStorage.getItem("username"),
-                                            password: window.sessionStorage.getItem("password")
-                                        };
-                                        ApiService.getAccesAndRefreshTokens(user)
-                                            .then(res => {
-                                                window.sessionStorage.setItem("username", this.state.username);
-                                                window.sessionStorage.setItem("password", this.state.password);
-                                                window.sessionStorage.setItem("accessToken", res.data.access_token);
-                                                window.sessionStorage.setItem("refreshToken", res.data.refresh_token);
-                                            });
-                                    } else {
-                                        this.setState({accessToken: res.data.access_token});
-                                        window.sessionStorage.setItem("accessToken", this.state.accessToken);
-                                    }
-
-                                }
-                            );
-                    }
-                }
-
                 this.setState({result: res.data.result})
-            })
-        ;
+            }).catch(error => {
+            var status = error.response.status;
+            returnError(status, error);
+            getTokens.call(this, error.response, this.sendCommand);
+        });
+
     }
 
-    reloadRoverInfo() {
-        ApiService.fetchRoverInfos()
+    reloadRoverInfo = (e) => {
+        if (e)
+            e.preventDefault();
+        ApiService.fetchRoverInfos(this.state.accessToken)
             .then((res) => {
-                if (res.status === 401)
-                    this.props.history.push('/login');
                 this.setState({rovers: res.data.result})
-            });
+            }).catch(error => {
+            var status = error.response.status;
+            returnError(status, error);
+            getTokens.call(this, error.response, this.reloadRoverInfo);
+        });
     }
 
+    logout = (e) => {
+        sessionStorage.clear();
+        this.props.history.push('/login');
+    }
 
     render() {
         return (
             <div>
                 <form>
+                    <button className="btn btn-success" style={{float: 'right'}}
+                            onClick={this.logout}>Logout
+                    </button>
                     <div className="form-group">
                         <label>Command:</label>
-                        <textarea name="cmdStr" placeholder="command" value={this.state.cmdStr}
+                        <textarea name="cmdStr" placeholder="command" value={this.state.cmdStr} className="form-control"
+                                  rows={5}
                                   onChange={this.onChange}/>
                     </div>
                     <div className="form-group">
                         <label>Command Result:</label>
                         <textarea contentEditable={false} name="result" placeholder="result" value={this.state.result}
+                                  className="form-control" rows={5} disabled={true}
                                   onChange={this.onChange}/>
                     </div>
 

@@ -26,8 +26,25 @@ class LoginComponent extends Component {
                 window.sessionStorage.setItem("refreshToken", res.data.refresh_token);
                 this.setState({message: 'Login successfull.'});
                 this.props.history.push('/');
-            });
+                window.Toast.fire({
+                    icon: 'success',
+                    title: 'Signed in successfully'
+                });
+            }).catch(error => {
+            var status = error.response.status;
+            if (status === 500)
+                window.Toast.fire({
+                    icon: 'error',
+                    title: error.response.data.message
+                });
+            else if (status === 400 || status === 401)
+                window.Toast.fire({
+                    icon: 'error',
+                    title: 'Invalid user or password'
+                });
+        });
     }
+
 
     onChange = (e) =>
         this.setState({[e.target.name]: e.target.value});

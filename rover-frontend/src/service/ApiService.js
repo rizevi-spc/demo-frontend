@@ -1,19 +1,12 @@
 import axios from 'axios';
 
-const USER_API_BASE_URL = 'http://localhost:8080';
+const SECURE_API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = 'http://localhost:8080';
 
 class ApiService {
 
-    fetchRoverInfos() {
-        return axios.get(USER_API_BASE_URL + '/fetchRoverInfo');
-    }
-
-    fetchUserById(userId) {
-        return axios.get(USER_API_BASE_URL + '/' + userId);
-    }
-
-    deleteUser(userId) {
-        return axios.delete(USER_API_BASE_URL + '/' + userId);
+    fetchRoverInfos(accessToken) {
+        return axios.get(SECURE_API_BASE_URL + '/fetchRoverInfo', {headers: {"Authorization": 'Bearer '+accessToken}});
     }
 
     getAccesAndRefreshTokens(user) {
@@ -23,7 +16,7 @@ class ApiService {
         params.append("grant_type", "password");
         params.append("client_id", "clientIdPassword");
 
-        return axios.post("" + USER_API_BASE_URL + '/oauth/token', {}, {
+        return axios.post("" + API_BASE_URL + '/oauth/token', {}, {
             auth: {
                 username: 'clientIdPassword',
                 password: 'secret'
@@ -33,12 +26,13 @@ class ApiService {
             params
         });
     }
+
     getAccesTokenFromRefreshToken(refreshToken) {
         var params = new URLSearchParams();
         params.append("grant_type", "refresh_token");
         params.append("refresh_token", refreshToken);
 
-        return axios.post("" + USER_API_BASE_URL + '/oauth/token', {}, {
+        return axios.post("" + API_BASE_URL + '/oauth/token', {}, {
             auth: {
                 username: 'clientIdPassword',
                 password: 'secret'
@@ -49,15 +43,12 @@ class ApiService {
         });
     }
 
-    editUser(user) {
-        return axios.put(USER_API_BASE_URL + '/' + user.id, user);
-    }
 
-    sendCommand(cmdStr) {
+    sendCommand(cmdStr, accessToken) {
         const params = new URLSearchParams();
         params.append('commandStr', cmdStr);
-        return axios.get(USER_API_BASE_URL + "/command", {
-            params
+        return axios.get(SECURE_API_BASE_URL + "/command", {
+            params, headers: {"Authorization": 'Bearer '+accessToken}
         });
     }
 
